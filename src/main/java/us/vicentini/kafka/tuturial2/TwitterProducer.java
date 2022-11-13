@@ -88,6 +88,9 @@ public class TwitterProducer implements Runnable {
         // safe producer
         properties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         properties.setProperty(ProducerConfig.ACKS_CONFIG, "all");
+        // enable compression
+        properties.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+
 
         // create the producer
         return new KafkaProducer<>(properties);
