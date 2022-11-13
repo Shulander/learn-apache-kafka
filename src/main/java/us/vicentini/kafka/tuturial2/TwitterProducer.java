@@ -90,6 +90,10 @@ public class TwitterProducer implements Runnable {
         properties.setProperty(ProducerConfig.ACKS_CONFIG, "all");
         // enable compression
         properties.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+        // producer batching
+        properties.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, "1024");
+        properties.setProperty(ProducerConfig.LINGER_MS_CONFIG, "50");
+
 
 
         // create the producer
