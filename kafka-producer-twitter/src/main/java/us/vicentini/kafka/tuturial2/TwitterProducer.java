@@ -47,10 +47,12 @@ public class TwitterProducer implements Runnable {
         KafkaProducer<String, String> producer = createKafkaProducer();
         Consumer<Tweet> tweetConsumer =
                 tweet -> {
-                    var msg = tweet.toJson();
-                    var tweetRecord =
-                            new ProducerRecord<>(TOPIC_NAME_FIRST_TOPIC, tweet.getAuthorId(), msg);
-                    producer.send(tweetRecord);
+                    if (tweet.getText().toLowerCase().contains(" to ")) {
+                        var msg = tweet.toJson();
+                        var tweetRecord =
+                                new ProducerRecord<>(TOPIC_NAME_FIRST_TOPIC, tweet.getAuthorId(), msg);
+                        producer.send(tweetRecord);
+                    }
                 };
         TweetsStreamListenersExecutor tsle = createTwitterClient(tweetConsumer);
 
