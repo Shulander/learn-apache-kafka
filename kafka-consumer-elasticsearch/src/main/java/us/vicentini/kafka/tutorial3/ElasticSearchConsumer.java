@@ -1,5 +1,6 @@
 package us.vicentini.kafka.tutorial3;
 
+import com.google.gson.JsonParser;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
@@ -42,8 +43,9 @@ public class ElasticSearchConsumer {
                              kafkaRecord.timestamp());
 
                     String jsonString = kafkaRecord.value().replaceAll("[\u0000-\u001f]", "");
+                    String id = extractTweetId(jsonString);
                     try {
-                        indexRequest.source(jsonString, XContentType.JSON);
+                        indexRequest.source(jsonString, XContentType.JSON).id(id);
                         IndexResponse indexResponse = elasticSearchClient.index(indexRequest, RequestOptions.DEFAULT);
                         log.info("elasticSearch response: {}", indexResponse);
                     } catch (Exception e) {
@@ -59,13 +61,21 @@ public class ElasticSearchConsumer {
     }
 
 
+    private static String extractTweetId(String jsonString) {
+        return JsonParser.parseString(jsonString)
+                .getAsJsonObject()
+                .get("id")
+                .getAsString();
+    }
+
+
     private static KafkaConsumer<String, String> createKafkaConsumer() {
         var properties = new Properties();
         properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVER_LOCALHOST_9092);
         properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_MY_JAVA_APPLICATION);
-        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+//        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.setProperty(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, RoundRobinAssignor.class.getName());
 
         KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(properties);
