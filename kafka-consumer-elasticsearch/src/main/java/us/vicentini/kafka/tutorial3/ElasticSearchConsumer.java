@@ -9,8 +9,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.RoundRobinAssignor;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -37,23 +38,29 @@ public class ElasticSearchConsumer {
             while (true) {
                 var records = kafkaConsumer.poll(Duration.ofMillis(5000));
                 IndexRequest indexRequest = new IndexRequest("twitter");
-                log.info("Received {} records", records.count());
+                int recordsCount = records.count();
+                log.info("Received {} records", recordsCount);
+
+                BulkRequest bulkRequest = new BulkRequest();
                 for (ConsumerRecord<String, String> kafkaRecord : records) {
                     String jsonString = kafkaRecord.value().replaceAll("[\u0000-\u001f]", "");
                     String id = extractTweetId(jsonString);
-                    try {
-                        indexRequest.source(jsonString, XContentType.JSON).id(id);
-                        IndexResponse indexResponse = elasticSearchClient.index(indexRequest, RequestOptions.DEFAULT);
-                        log.info("elasticSearch response: {}", indexResponse);
-                    } catch (Exception e) {
-                        // ignore messages with special chars... Don't want to handle this now.
-                        log.error("FUCK THIS SHIT.... message= '{}'", jsonString);
-                    }
+                    indexRequest.source(jsonString, XContentType.JSON).id(id);
+                    bulkRequest.add(indexRequest);
                 }
 
-                log.info("Committing offsets...");
-                kafkaConsumer.commitSync();
-                log.info("Offsets Committed!");
+                if (recordsCount > 0) {
+                    BulkResponse response = elasticSearchClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+                    if (response.hasFailures()) {
+                        log.warn("Failures: {}", response.buildFailureMessage());
+                    }
+
+                    log.info("Committing offsets...");
+                    kafkaConsumer.commitSync();
+                    log.info("Offsets Committed!");
+                }
+
+                Thread.sleep(3000);
             }
         } finally {
             log.info("End execution");
