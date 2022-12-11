@@ -35,13 +35,10 @@ public class ElasticSearchConsumer {
         try (var kafkaConsumer = createKafkaConsumer();
              var elasticSearchClient = createElasticSearchClient()) {
             while (true) {
-                var records = kafkaConsumer.poll(Duration.ofMillis(100));
+                var records = kafkaConsumer.poll(Duration.ofMillis(5000));
                 IndexRequest indexRequest = new IndexRequest("twitter");
+                log.info("Received {} records", records.count());
                 for (ConsumerRecord<String, String> kafkaRecord : records) {
-                    log.info("Record: key={}, value={}, partition={}, offset={}, timestamp={}", kafkaRecord.key(),
-                             kafkaRecord.value(), kafkaRecord.partition(), kafkaRecord.offset(),
-                             kafkaRecord.timestamp());
-
                     String jsonString = kafkaRecord.value().replaceAll("[\u0000-\u001f]", "");
                     String id = extractTweetId(jsonString);
                     try {
@@ -53,6 +50,10 @@ public class ElasticSearchConsumer {
                         log.error("FUCK THIS SHIT.... message= '{}'", jsonString);
                     }
                 }
+
+                log.info("Committing offsets...");
+                kafkaConsumer.commitSync();
+                log.info("Offsets Committed!");
             }
         } finally {
             log.info("End execution");
@@ -77,6 +78,8 @@ public class ElasticSearchConsumer {
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_MY_JAVA_APPLICATION);
 //        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.setProperty(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, RoundRobinAssignor.class.getName());
+        properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        properties.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "10");
 
         KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(properties);
         kafkaConsumer.subscribe(List.of(TOPIC_NAME_FIRST_TOPIC));
