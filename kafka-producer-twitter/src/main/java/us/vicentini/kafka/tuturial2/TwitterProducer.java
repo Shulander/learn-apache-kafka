@@ -47,8 +47,9 @@ public class TwitterProducer implements Runnable {
         KafkaProducer<String, String> producer = createKafkaProducer();
         Consumer<Tweet> tweetConsumer =
                 tweet -> {
+                    var msg = tweet.toJson();
                     var tweetRecord =
-                            new ProducerRecord<>(TOPIC_NAME_FIRST_TOPIC, tweet.getAuthorId(), tweet.getText());
+                            new ProducerRecord<>(TOPIC_NAME_FIRST_TOPIC, tweet.getAuthorId(), msg);
                     producer.send(tweetRecord);
                 };
         TweetsStreamListenersExecutor tsle = createTwitterClient(tweetConsumer);
@@ -93,7 +94,6 @@ public class TwitterProducer implements Runnable {
         // producer batching
         properties.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, "1024");
         properties.setProperty(ProducerConfig.LINGER_MS_CONFIG, "50");
-
 
 
         // create the producer
